@@ -5,28 +5,30 @@ edition = "2021"
 license = "Apache-2.0 OR MIT"
 name = "geox"
 repository = "https://github.com/bbqsrc/geox"
-version = "0.6.0"
+version = "0.7.0"
 
 [dependencies]
-async-graphql = {version = ">=4,<7", optional = true}
-geo = ">=0.23,<0.29"
-geo-types = "0.7.8"
-geozero = {version = ">=0.9,<0.13", features = [
-  "with-postgis-sqlx",
-], optional = true}
-serde = {version = "1.0.144", features = ["derive"], optional = true}
-serde_json = {version = "1.0.85", optional = true}
-sqlx = {version = "0.7.4", optional = true, features = ["runtime-tokio-rustls", "postgres"]}
+# sqlx feature
+sqlx = { version = "0.7.4", optional = true, features = ["runtime-tokio-rustls", "postgres"] }
+# async-graphql feature
+async-graphql = { version = ">=4, <7", optional = true }
+# serde feature
+serde = { version = "1.0", features = ["derive"], optional = true }
+# used for serializing and deserializing msgpack
+rmp-serde = { version = "1.3", optional = true }
+
+geo = { version = ">=0.23, <0.29", default-features = false }
+geo-types = { version = "0.7.8", default-features = false }
+geozero = { version = ">=0.9, <0.13", optional = true, features = ["with-postgis-sqlx"] }
 
 [dev-dependencies]
-tokio = { version = "1.21.1", features = ["full"] }
-sqlx = {version = "0.7.4", features = ["runtime-tokio-rustls", "postgres"]}
+tokio = { version = "1.40", features = ["full"] }
+sqlx = { version = "0.7.4", features = ["runtime-tokio-rustls", "postgres"] }
 
 [features]
 serde = [
   "dep:serde",
-  "geozero/with-geojson",
-  "serde_json",
+  "dep:rmp-serde",
   "geo/serde",
   "geo-types/serde",
 ]

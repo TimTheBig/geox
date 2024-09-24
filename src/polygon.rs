@@ -144,13 +144,13 @@ impl Serialize for Polygon {
     {
         use geozero::ToJson;
         use serde::ser::{Error, SerializeMap};
-        use serde_json::Value;
+        use rmp_serde::Raw;
         use std::collections::BTreeMap;
 
         let s = geo::Geometry::Polygon(self.0.clone())
             .to_json()
             .map_err(Error::custom)?;
-        let s: BTreeMap<String, Value> = serde_json::from_str(&s).map_err(Error::custom)?;
+        let s: BTreeMap<String, Raw> = rmp_serde::from_slice(s.as_bytes()).map_err(Error::custom)?;
 
         let mut map = serializer.serialize_map(Some(s.len()))?;
         for (k, v) in s {
