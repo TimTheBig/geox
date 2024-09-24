@@ -91,12 +91,14 @@ impl<'de> sqlx::Decode<'de, Postgres> for Polygon {
 
 #[cfg(feature = "sqlx")]
 impl<'en> sqlx::Encode<'en, Postgres> for Polygon {
-	fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> IsNull {
+	fn encode_by_ref(
+		&self, buf: &mut sqlx::postgres::PgArgumentBuffer,
+	) -> Result<IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
 		let x = geo::Geometry::Polygon(self.0.clone())
 			.to_ewkb(geozero::CoordDimensions::xy(), None)
 			.unwrap();
 		buf.extend(x);
-		sqlx::encode::IsNull::No
+		Ok(sqlx::encode::IsNull::No)
 	}
 }
 
@@ -199,12 +201,7 @@ mod sqlx_tests {
 	async fn polygon() {
 		let polygon = geo::Polygon::<f64>::new(
 			LineString::from(vec![(0., 0.), (1., 1.), (1., 0.), (0., 0.)]),
-			vec![LineString::from(vec![
-				(0.1, 0.1),
-				(0.9, 0.9),
-				(0.9, 0.1),
-				(0.1, 0.1),
-			])],
+			vec![LineString::from(vec![(0.1, 0.1), (0.9, 0.9), (0.9, 0.1), (0.1, 0.1)])],
 		);
 		let data_to = Polygon(polygon);
 		let data_from = pg_roundtrip(&data_to, "Polygon").await;

@@ -7,7 +7,7 @@ use geozero::{wkb, ToWkb};
 use sqlx::{
 	encode::IsNull,
 	postgres::{PgHasArrayType, PgTypeInfo, PgValueRef},
-	Postgres, ValueRef,
+	Postgres,
 };
 
 #[derive(Clone, Debug)]
@@ -50,24 +50,37 @@ impl Geometry {
 }
 
 #[cfg(feature = "sqlx")]
-impl<'de> sqlx::Decode<'de, Postgres> for Geometry {
-	fn decode(value: PgValueRef<'de>) -> Result<Self, sqlx::error::BoxDynError> {
+impl geozero::wkb::FromWkb for Geometry {
+	fn from_wkb<R: std::io::Read>(rdr: &mut R, dialect: wkb::WkbDialect) -> geozero::error::Result<Self> {
+		Ok(Geometry(geo::Geometry::from_wkb(rdr, dialect)?))
+	}
+}
+
+#[cfg(feature = "sqlx")]
+impl<'de> sqlx::decode::Decode<'de, Postgres> for Geometry {
+	fn decode(value: PgValueRef<'de>) -> std::result::Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+		use geozero::wkb::FromWkb;
+		use sqlx::ValueRef;
 		if value.is_null() {
-			return Err(Box::new(sqlx::error::UnexpectedNullError));
+			return Err(Box::new(sqlx::Error::Decode("Cannot decode NULL value".into())));
 		}
-		let decode = wkb::Decode::<geo::Geometry<f64>>::decode(value)?;
-		Ok(Geometry(decode.geometry
-			.expect("geometry parsing failed without error for non-null value"),
-		))
+
+		let mut blob = <&[u8] as sqlx::decode::Decode<Postgres>>::decode(value)?;
+		let geom = <Geometry>::from_wkb(&mut blob, geozero::wkb::WkbDialect::Ewkb)
+			.map_err(|e| sqlx::Error::Decode(e.to_string().into()))?;
+
+		Ok(geom)
 	}
 }
 
 #[cfg(feature = "sqlx")]
 impl<'en> sqlx::Encode<'en, Postgres> for Geometry {
-	fn encode_by_ref(&self, buf: &mut sqlx::postgres::PgArgumentBuffer) -> IsNull {
-		let x = self.0.to_ewkb(geozero::CoordDimensions::xy(), None).unwrap();
+	fn encode_by_ref(
+		&self, buf: &mut sqlx::postgres::PgArgumentBuffer,
+	) -> Result<IsNull, Box<(dyn std::error::Error + Send + Sync + 'static)>> {
+		let x = self.0.to_wkb(geozero::CoordDimensions::xy()).unwrap();
 		buf.extend(x);
-		sqlx::encode::IsNull::No
+		Ok(sqlx::encode::IsNull::No)
 	}
 }
 
